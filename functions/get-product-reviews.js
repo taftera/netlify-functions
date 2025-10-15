@@ -22,23 +22,36 @@ exports.handler = async (event, context) => {
 
   try {
     // 2. Extract product_id from query parameters
-    const productId = event.queryStringParameters?.product_id;
+    const internal_id = event.queryStringParameters?.internal_id;
+    const per_page = event.queryStringParameters?.per_page;
+    const page = event.queryStringParameters?.page;
 
     // 3. Validate that product_id was provided
-    if (!productId) {
+    if (!internal_id || !per_page || !page) {
+      let error_message = 'Please provide ';
+      if (!internal_id) {
+        error_message += 'internal_id, ';
+      }
+      if (!per_page) {
+        error_message += 'per_page, ';
+      }
+      if (!page) {
+        error_message += 'page, ';
+      }
+      console.log(internal_id, per_page, page);
+
       return {
         statusCode: 400,
         headers,
         body: JSON.stringify({
           error: 'Missing required parameter',
-          message:
-            'Please provide product_id as a query parameter (e.g., ?product_id=1104270388)',
+          message: `${error_message}, as a query parameter (e.g., ?internal_id=684657414&per_page=10&page=1)`,
         }),
       };
     }
 
     // 4. Build the Judge.me API URL with the product_id
-    const JUDGE_ME_API_URL = `https://api.judge.me/api/v1/products/-1?api_token=${API_TOKEN}&shop_domain=${SHOP_DOMAIN}&external_id=${productId}`;
+    const JUDGE_ME_API_URL = `https://api.judge.me/api/v1/reviews?api_token=${API_TOKEN}&shop_domain=${SHOP_DOMAIN}&internal_id=${internal_id}&per_page=${per_page}&page=${page}`;
     // console.log(JUDGE_ME_API_URL);
 
     // 5. Make the request from the Netlify Function to the Judge.me API
@@ -58,7 +71,7 @@ exports.handler = async (event, context) => {
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify(data.product.id),
+      body: JSON.stringify(data),
     };
   } catch (error) {
     console.error('Function error:', error);
