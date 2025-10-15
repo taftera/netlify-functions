@@ -1,0 +1,14 @@
+{
+  "name": "pinging-judgeme",
+  "version": "1.0.0",
+  "description": "Netlify function to fetch Judge.me product data via Shopify product ID",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "dev": "netlify dev"
+  },
+  "devDependencies": {
+    "netlify-cli": "^17.0.0"
+  }
+}
