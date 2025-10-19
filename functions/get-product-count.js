@@ -1,3 +1,5 @@
+// WiP: Work in Progress
+
 // Netlify Function to fetch Judge.me product data
 const API_TOKEN = process.env.JUDGE_ME_PRIVATE_API_TOKEN;
 const SHOP_DOMAIN = process.env.SHOP_DOMAIN;
@@ -19,38 +21,37 @@ exports.handler = async (event, context) => {
       body: '',
     };
   }
-
+  let product_rating = {
+    count: 0,
+    score_1: 0,
+    score_2: 0,
+    score_3: 0,
+    score_4: 0,
+    score_5: 0,
+  };
   try {
     // 2. Extract product_id from query parameters
     const internal_id = event.queryStringParameters?.internal_id;
-    const per_page = event.queryStringParameters?.per_page;
-    const page = event.queryStringParameters?.page;
 
     // 3. Validate that product_id was provided
-    if (!internal_id || !per_page || !page) {
+    if (!internal_id) {
       let error_message = 'Please provide ';
       if (!internal_id) {
         error_message += 'internal_id, ';
       }
-      if (!per_page) {
-        error_message += 'per_page, ';
-      }
-      if (!page) {
-        error_message += 'page, ';
-      }
-      console.log(internal_id, per_page, page);
+      console.log(internal_id);
 
       return {
         statusCode: 400,
         headers,
         body: JSON.stringify({
           error: 'Missing required parameter',
-          message: `${error_message}, as a query parameter (e.g., ?internal_id=684657414&per_page=10&page=1)`,
+          message: `${error_message}, as a query parameter (e.g., ?internal_id=684657414)`,
         }),
       };
     }
     // 4. Build the Judge.me API URL with the product_id
-    const JUDGE_ME_API_URL = `https://api.judge.me/api/v1/reviews?api_token=${API_TOKEN}&shop_domain=${SHOP_DOMAIN}&product_id=${internal_id}&per_page=${per_page}&page=${page}`;
+    const JUDGE_ME_API_URL = `https://api.judge.me/api/v1/reviews/count?api_token=${API_TOKEN}&shop_domain=${SHOP_DOMAIN}&product_id=${internal_id}`;
     // console.log('JUDGE_ME_API_URL);
 
     // 5. Make the request from the Netlify Function to the Judge.me API
@@ -65,48 +66,32 @@ exports.handler = async (event, context) => {
 
     // 7. Get the JSON data
     const data = await response.json();
-    // console.log('data', data[0]);
+    product_rating.count = data.count;
+    console.log('--> ', product_rating);
 
-    let filtered_data = [];
-    let is_general_reviews = false;
-
-    if (data[0] !== undefined) {
-      // 7.5. Filter reviews that data.published == true
-      filtered_data = data.reviews.filter(
-        (review) => review.published === true
-      );
-    } else {
-      // 7.6. If there's no data, fetch the latest reviews (page 1)
-      console.log('No reviews found, fetching latest reviews');
-      is_general_reviews = true;
-      const LATEST_REVIEWS_URL = `https://api.judge.me/api/v1/reviews?api_token=${API_TOKEN}&shop_domain=${SHOP_DOMAIN}&per_page=${per_page}&page=1`;
-
-      const latest_response = await fetch(LATEST_REVIEWS_URL, {
+    // Create an array of product_rating.count keys
+    for (let i = 1; i <= 5; i++) {
+      // 5. Make the request from the Netlify Function to the Judge.me API
+      const response = await fetch(`${JUDGE_ME_API_URL}&rating=${i}`, {
         method: 'GET',
       });
 
-      let latest_data = [];
-      if (latest_response.ok) {
-        latest_data = await latest_response.json();
-        filtered_data = latest_data.reviews.filter(
-          (review) => review.published === true
-        );
+      // 6. Check for a successful response from Judge.me
+      if (!response.ok) {
+        throw new Error(`Judge.me API error: ${response.statusText}`);
       }
-      // console.log('Latest reviews fetched:', filtered_data[0]);
+
+      // 7. Get the JSON data
+      const data = await response.json();
+      // console.log(`count ${i} --> `, data);
+      product_rating[`score_${i}`] = data.count;
     }
 
     // 8. Return the data to the client (your Shopify storefront)
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({
-        reviews: filtered_data,
-        config: {
-          is_general_reviews: is_general_reviews,
-          requested_product_id: internal_id,
-          source: is_general_reviews ? 'latest_reviews' : 'product_specific',
-        },
-      }),
+      body: JSON.stringify(product_rating),
     };
   } catch (error) {
     console.error('Function error:', error);
