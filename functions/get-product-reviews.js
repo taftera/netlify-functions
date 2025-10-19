@@ -51,6 +51,7 @@ exports.handler = async (event, context) => {
     }
     // 4. Build the Judge.me API URL with the product_id
     const JUDGE_ME_API_URL = `https://api.judge.me/api/v1/reviews?api_token=${API_TOKEN}&shop_domain=${SHOP_DOMAIN}&product_id=${internal_id}&per_page=${per_page}&page=${page}`;
+    const JUDGE_ME_API_URL_GENERAL = `https://api.judge.me/api/v1/reviews?api_token=${API_TOKEN}&shop_domain=${SHOP_DOMAIN}&per_page=${per_page}&page=${page}`;
     // console.log('JUDGE_ME_API_URL);
 
     // 5. Make the request from the Netlify Function to the Judge.me API
@@ -65,37 +66,28 @@ exports.handler = async (event, context) => {
 
     // 7. Get the JSON data
     const data = await response.json();
-    // console.log('data', data[0]);
+    console.log('data', data);
 
-    let filtered_data = [];
     let is_general_reviews = false;
+    let filtered_data = [];
 
-    if (data[0] !== undefined) {
-      // 7.5. Filter reviews that data.published == true
-      filtered_data = data.reviews.filter(
+    if (data.reviews.length === 0) {
+      is_general_reviews = true;
+      console.log('No reviews found, fetching latest reviews');
+      const response_general = await fetch(JUDGE_ME_API_URL_GENERAL, {
+        method: 'GET',
+      });
+      const data_general = await response_general.json();
+      filtered_data = data_general.reviews.filter(
         (review) => review.published === true
       );
     } else {
-      // 7.6. If there's no data, fetch the latest reviews (page 1)
-      console.log('No reviews found, fetching latest reviews');
-      is_general_reviews = true;
-      const LATEST_REVIEWS_URL = `https://api.judge.me/api/v1/reviews?api_token=${API_TOKEN}&shop_domain=${SHOP_DOMAIN}&per_page=${per_page}&page=1`;
-
-      const latest_response = await fetch(LATEST_REVIEWS_URL, {
-        method: 'GET',
-      });
-
-      let latest_data = [];
-      if (latest_response.ok) {
-        latest_data = await latest_response.json();
-        filtered_data = latest_data.reviews.filter(
-          (review) => review.published === true
-        );
-      }
-      // console.log('Latest reviews fetched:', filtered_data[0]);
+      filtered_data = data.reviews.filter(
+        (review) => review.published === true
+      );
     }
 
-    // 8. Return the data to the client (your Shopify storefront)
+    // 7.5. Filter reviews that data.published == true
     return {
       statusCode: 200,
       headers,
