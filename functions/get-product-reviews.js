@@ -66,25 +66,26 @@ exports.handler = async (event, context) => {
 
     // 7. Get the JSON data
     const data = await response.json();
-    console.log('data', data);
+    // console.log('data', data);
 
     let is_general_reviews = false;
     let filtered_data = [];
 
-    if (data.reviews.length === 0) {
+    // First, filter product-specific reviews for published ones
+    filtered_data = data.reviews.filter((review) => review.published === true);
+
+    // If no published reviews found for this product, fetch general reviews
+    if (filtered_data.length === 0) {
       is_general_reviews = true;
-      console.log('No reviews found, fetching latest reviews');
+      console.log(
+        'No published reviews found for product, fetching general reviews'
+      );
       const response_general = await fetch(JUDGE_ME_API_URL_GENERAL, {
         method: 'GET',
       });
       const data_general = await response_general.json();
-      filtered_data = data_general.reviews.filter(
-        (review) => review.published === true
-      );
-    } else {
-      filtered_data = data.reviews.filter(
-        (review) => review.published === true
-      );
+      // For general reviews, show all reviews (don't filter by published status)
+      filtered_data = data_general.reviews;
     }
     const formatReviewerName = (fullName) => {
       const nameParts = fullName.trim().split(' ');
