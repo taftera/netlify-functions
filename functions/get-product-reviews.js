@@ -86,18 +86,47 @@ exports.handler = async (event, context) => {
         (review) => review.published === true
       );
     }
+    const formatReviewerName = (fullName) => {
+      const nameParts = fullName.trim().split(' ');
+      if (nameParts.length === 1) return fullName;
 
-    // 7.5. Filter reviews that data.published == true
+      const firstName = nameParts[0];
+      const lastName = nameParts[nameParts.length - 1];
+      const lastInitial = lastName.charAt(0).toUpperCase();
+
+      return `${firstName} ${lastInitial}.`;
+    };
+
+    // 7.5. Filter reviews that data.published == true and map to only needed fields
+    const sanitized_reviews = filtered_data.map((review) => ({
+      id: review.id,
+      rating: review.rating,
+      created_at: review.created_at,
+      featured: review.featured,
+      title: review.title,
+      body: review.body,
+      verified: review.verified,
+      reviewer: {
+        name: formatReviewerName(review.reviewer?.name),
+      },
+      pictures:
+        review.pictures?.map((picture) => ({
+          urls: {
+            original: picture.urls?.original,
+          },
+          hidden: picture.hidden,
+          title: picture.title,
+        })) || [],
+    }));
+
     return {
       statusCode: 200,
       headers,
       body: JSON.stringify({
-        reviews: filtered_data,
         config: {
           is_general_reviews: is_general_reviews,
-          requested_product_id: internal_id,
-          source: is_general_reviews ? 'latest_reviews' : 'product_specific',
         },
+        reviews: sanitized_reviews,
       }),
     };
   } catch (error) {
